@@ -1,0 +1,16 @@
+{
+  "name": "toss-proxy",
+  "version": "1.0.0",
+  "description": "토스증권 Open API 조회 전용(읽기 전용) 프록시 서버 - 가계부 연동용",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
