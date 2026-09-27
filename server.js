@@ -6,27 +6,28 @@
  * - client_id / client_secret은 이 서버(.env)에만 보관되고,
  *   가계부.html 같은 브라우저 쪽 파일에는 절대 넣지 않습니다.
  * - 가계부 앱은 이 서버가 내려주는 x-app-token(APP_TOKEN)이 맞는 요청에만
- *   응답을 받습니다. 이 토큰이 없으면 누구나 내 잔고를 볼 수 있게 되니
- *   반드시 설정하세요.
+ *   응답을 받습니다.
  *
- * ⚠️ TODO: 아래 TOSS_TOKEN_URL / TOSS_HOLDINGS_URL / TOSS_QUOTE_URL 은
- * developers.tossinvest.com 공식 문서에서 실제 경로를 확인한 뒤
- * .env 파일에 정확한 값으로 채워주세요. 여기 적힌 값은 검색으로 확인한
- * 참고용 추정치라 문서와 다를 수 있습니다.
+ * 엔드포인트 출처: https://openapi.tossinvest.com/openapi-docs/overview.md (공식 문서, 2026-09 확인)
  */
 
 require('dotenv').config();
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const app = express();
+app.use(express.json({ limit: '5mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
 const APP_TOKEN = process.env.APP_TOKEN;
 const CLIENT_ID = process.env.TOSS_CLIENT_ID;
 const CLIENT_SECRET = process.env.TOSS_CLIENT_SECRET;
 
-const TOSS_TOKEN_URL = process.env.TOSS_TOKEN_URL || 'https://oauth2.tossinvest.com/oauth2/token';
-const TOSS_HOLDINGS_URL = process.env.TOSS_HOLDINGS_URL || 'https://openapi.tossinvest.com/api/v1/accounts/holdings';
-const TOSS_QUOTE_URL = process.env.TOSS_QUOTE_URL || 'https://openapi.tossinvest.com/api/v1/stocks'; // ?symbols=005930
+const TOSS_TOKEN_URL = process.env.TOSS_TOKEN_URL || 'https://openapi.tossinvest.com/oauth2/token';
+const TOSS_ACCOUNTS_URL = process.env.TOSS_ACCOUNTS_URL || 'https://openapi.tossinvest.com/api/v1/accounts';
+const TOSS_HOLDINGS_URL = process.env.TOSS_HOLDINGS_URL || 'https://openapi.tossinvest.com/api/v1/holdings';
+const TOSS_QUOTE_URL = process.env.TOSS_QUOTE_URL || 'https://openapi.tossinvest.com/api/v1/prices'; // ?symbols=005930
 
 if (!APP_TOKEN || !CLIENT_ID || !CLIENT_SECRET) {
   console.error('환경변수 누락: APP_TOKEN / TOSS_CLIENT_ID / TOSS_CLIENT_SECRET 을 .env에 설정해주세요.');
@@ -37,7 +38,7 @@ if (!APP_TOKEN || !CLIENT_ID || !CLIENT_SECRET) {
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'x-app-token, Content-Type');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
@@ -51,7 +52,7 @@ function requireAppToken(req, res, next) {
   next();
 }
 
-// ---- 토스 OAuth2 액세스 토큰 캐싱 ----
+// ---- 토스 OAuth2 액세스 토큰 캐싱 (Client Credentials Grant) ----
 let cachedToken = null; // { access_token, expires_at }
 
 async function getTossAccessToken() {
@@ -81,16 +82,29 @@ async function getTossAccessToken() {
   return cachedToken.access_token;
 }
 
-async function tossFetch(url) {
+async function tossFetch(url, accountSeq) {
   const accessToken = await getTossAccessToken();
-  const resp = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  });
+  const headers = { Authorization: `Bearer ${accessToken}` };
+  if (accountSeq) headers['X-Tossinvest-Account'] = String(accountSeq);
+  const resp = await fetch(url, { headers });
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
     throw new Error(`토스 API 호출 실패 (${resp.status}): ${text}`);
   }
   return resp.json();
+}
+
+// 계좌 목록에서 첫 번째 accountSeq를 가져온다 (계좌·자산 API는 이 헤더가 필수)
+async function getFirstAccountSeq() {
+  const data = await tossFetch(TOSS_ACCOUNTS_URL);
+  const result = data.result || data;
+  const list = result.items || result.accounts || (Array.isArray(result) ? result : []);
+  const first = Array.isArray(list) ? list[0] : null;
+  const seq = first && (first.accountSeq ?? first.seq ?? first.id);
+  if (seq === undefined || seq === null) {
+    throw new Error('계좌 목록에서 accountSeq를 찾지 못했습니다: ' + JSON.stringify(data).slice(0, 300));
+  }
+  return seq;
 }
 
 // ---- 헬스체크 ----
@@ -99,20 +113,27 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 // ---- 보유 종목/잔고 조회 (조회 전용) ----
 app.get('/holdings', requireAppToken, async (req, res) => {
   try {
-    const data = await tossFetch(TOSS_HOLDINGS_URL);
-    // 토스 응답은 { result: { items: [...], totalPurchaseAmount, totalValuationAmount, ... } } 형태로
-    // 감싸져 있을 가능성이 높습니다 (문서 확인 후 아래 매핑을 맞춰주세요).
+    const accountSeq = await getFirstAccountSeq();
+    const data = await tossFetch(TOSS_HOLDINGS_URL, accountSeq);
     const result = data.result || data;
     const items = result.items || result.holdings || [];
-    const normalized = items.map(it => ({
-      symbol: it.symbol || it.code || it.productCode || '',
-      name: it.name || it.productName || it.symbolName || '',
-      qty: Number(it.quantity ?? it.qty ?? 0),
-      avgPrice: Number(it.avgPrice ?? it.purchasePrice ?? 0),
-      currentPrice: Number(it.currentPrice ?? it.price ?? 0),
-      purchaseAmount: Number(it.purchaseAmount ?? it.totalPurchaseAmount ?? 0),
-      valuationAmount: Number(it.valuationAmount ?? it.totalValuationAmount ?? 0)
-    }));
+    const normalized = items.map(it => {
+      const qty = it.quantity !== undefined ? Number(it.quantity) : null;
+      const currentPrice = it.lastPrice !== undefined ? Number(it.lastPrice) : (it.currentPrice !== undefined ? Number(it.currentPrice) : null);
+      const plAmount = it.profitLoss && it.profitLoss.amount !== undefined ? Number(it.profitLoss.amount) : null;
+      const valuation = (qty !== null && currentPrice !== null) ? qty * currentPrice : null;
+      let purchaseAmount = it.purchaseAmount !== undefined ? Number(it.purchaseAmount) : null;
+      if (purchaseAmount === null && valuation !== null && plAmount !== null) {
+        purchaseAmount = valuation - plAmount;
+      }
+      return {
+        symbol: it.symbol || it.code || '',
+        name: it.name || it.symbol || '',
+        qty,
+        currentPrice,
+        purchaseAmount: purchaseAmount || 0
+      };
+    });
     res.json({ items: normalized, syncedAt: new Date().toISOString() });
   } catch (err) {
     console.error(err);
@@ -131,6 +152,60 @@ app.get('/price', requireAppToken, async (req, res) => {
     console.error(err);
     res.status(502).json({ error: 'toss_fetch_failed', message: String(err.message || err) });
   }
+});
+
+// ==================================================
+// 가계부 데이터 저장소 (여러 기기 동기화용, 조회/저장/삭제)
+// 파일 하나(budget-data.json)에 key-value로 저장합니다.
+// ==================================================
+const BUDGET_DATA_FILE = path.join(__dirname, 'budget-data.json');
+
+function loadBudgetStore() {
+  try {
+    const raw = fs.readFileSync(BUDGET_DATA_FILE, 'utf8');
+    return JSON.parse(raw);
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveBudgetStore(store) {
+  fs.writeFileSync(BUDGET_DATA_FILE, JSON.stringify(store), 'utf8');
+}
+
+let budgetStore = loadBudgetStore();
+
+app.get('/budget/kv', requireAppToken, (req, res) => {
+  const key = req.query.key;
+  if (!key) return res.status(400).json({ error: 'missing_key' });
+  const value = Object.prototype.hasOwnProperty.call(budgetStore, key) ? budgetStore[key] : null;
+  res.json({ key, value });
+});
+
+app.put('/budget/kv', requireAppToken, (req, res) => {
+  const { key, value } = req.body || {};
+  if (!key) return res.status(400).json({ error: 'missing_key' });
+  budgetStore[key] = value;
+  try {
+    saveBudgetStore(budgetStore);
+  } catch (e) {
+    console.error('가계부 데이터 저장 실패', e);
+    return res.status(500).json({ error: 'save_failed', message: String(e.message || e) });
+  }
+  res.json({ key, ok: true });
+});
+
+app.delete('/budget/kv', requireAppToken, (req, res) => {
+  const key = req.query.key;
+  if (!key) return res.status(400).json({ error: 'missing_key' });
+  delete budgetStore[key];
+  try {
+    saveBudgetStore(budgetStore);
+  } catch (e) {
+    console.error('가계부 데이터 삭제 실패', e);
+    return res.status(500).json({ error: 'delete_failed', message: String(e.message || e) });
+  }
+  res.json({ key, ok: true });
 });
 
 app.listen(PORT, () => {
