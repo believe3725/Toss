@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>우리집 가계부</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --paper:#F1EEE4;
+    --paper-2:#FBF9F3;
+    --card:#FFFFFF;
+    --ink:#232B3D;
+    --ink-soft:#5B6472;
+    --ink-faint:#9B9587;
+    --hair:#DFD8C6;
+    --hair-strong:#C7BEA6;
+    --brass:#A9832F;
+    --brass-dark:#7E6122;
+    --jade:#2F6F62;
+    --jade-bg:#E4EFEA;
+    --rust:#B0463D;
+    --rust-bg:#F7E7E4;
+    --amber-bg:#F6ECD9;
+    --amber-ink:#8A5F14;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Noto Sans KR', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{max-width:960px;margin:0 auto;padding:28px 20px 80px;}
+  .masthead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px;}
+  .masthead h1{
+    font-family:'Noto Serif KR', serif;
+    font-weight:700;
+    font-size:28px;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .masthead p{margin:4px 0 0;color:var(--ink-soft);font-size:13px;}
+  .month-tabs{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .month-tab{
+    font-family:'Noto Serif KR', serif;
+    font-size:14px;
+    padding:8px 14px 7px;
+    background:var(--paper-2);
+    border:1px solid var(--hair);
+    border-bottom:none;
+    border-radius:8px 8px 0 0;
+    cursor:pointer;
+    color:var(--ink-soft);
+    position:relative;
+    top:1px;
+  }
+  .month-tab.active{
+    background:var(--card);
+    color:var(--ink);
+    border-color:var(--hair-strong);
+    font-weight:700;
+  }
+  .month-tab{display:inline-flex;align-items:center;gap:4px;}
+  .month-tab-label{cursor:pointer;}
+  .month-del{
+    background:none;border:none;color:var(--ink-faint);cursor:pointer;
+    font-size:13px;line-height:1;padding:0 2px;
+  }
+  .month-del:hover{color:var(--rust);}
+  .month-tab-confirm{gap:8px;font-size:13px;color:var(--rust);}
+  .month-tab-confirm .btn{padding:5px 10px;font-size:12px;}
+  .month-add{
+    width:32px;height:32px;border-radius:50%;border:1px dashed var(--hair-strong);
+    background:transparent;color:var(--ink-soft);cursor:pointer;font-size:16px;line-height:1;
+  }
+  .month-add:hover{border-color:var(--brass);color:var(--brass);}
+  .month-add-form{display:flex;align-items:center;gap:6px;}
+  .month-add-form input{
+    font-family:'Noto Sans KR', sans-serif;
+    border:1px solid var(--hair-strong);border-radius:6px;
+    padding:7px 8px;font-size:13px;background:var(--paper-2);color:var(--ink);width:150px;
+  }
+  .month-add-form input:focus{outline:2px solid var(--brass);outline-offset:1px;}
+  .month-add-form .btn{padding:7px 10px;font-size:12px;}
+  .month-hint{font-size:11px;color:var(--ink-faint);width:100%;margin-top:4px;}
+
+  .summary-strip{
+    background:var(--card);
+    border:1px solid var(--hair-strong);
+    border-radius:0 10px 10px 10px;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    margin-bottom:24px;
+    overflow:hidden;
+  }
+  .summary-cell{
+    padding:16px 18px;
+    border-right:1px solid var(--hair);
+  }
+  .summary-cell:last-child{border-right:none;}
+  .summary-label{font-size:12px;color:var(--ink-soft);margin-bottom:6px;}
+  .summary-value{
+    font-family:'Noto Serif KR', serif;
+    font-size:21px;
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+  }
+  .summary-value.pos{color:var(--jade);}
+  .summary-value.neg{color:var(--rust);}
+
+  .tabnav{display:flex;gap:4px;border-bottom:1px solid var(--hair-strong);margin-bottom:22px;}
+  .tabnav button{
+    background:none;border:none;padding:10px 16px;font-size:14px;color:var(--ink-soft);
+    cursor:pointer;border-bottom:2px solid transparent;font-weight:500;
+    font-family:'Noto Sans KR', sans-serif;
+  }
+  .tabnav button.active{color:var(--ink);border-bottom-color:var(--brass);font-weight:700;}
+
+  .panel-title{font-family:'Noto Serif KR', serif;font-size:17px;font-weight:700;margin:0 0 12px;}
+  .card{background:var(--card);border:1px solid var(--hair);border-radius:10px;padding:18px 20px;margin-bottom:18px;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media (max-width:720px){.grid-2{grid-template-columns:1fr;} .summary-strip{grid-template-columns:1fr 1fr;}}
+
+  .entry-form{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:16px;}
+  .field{display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:11px;color:var(--ink-soft);}
+  .field input, .field select{
+    font-family:'Noto Sans KR', sans-serif;
+    border:1px solid var(--hair-strong);
+    border-radius:6px;
+    padding:7px 8px;
+    font-size:13px;
+    background:var(--paper-2);
+    color:var(--ink);
+  }
+  .field input:focus, .field select:focus{outline:2px solid var(--brass);outline-offset:1px;}
+  .field.grow{flex:1;min-width:120px;}
+  .btn{
+    border:none;border-radius:6px;padding:8px 14px;font-size:13px;font-weight:700;
+    cursor:pointer;font-family:'Noto Sans KR', sans-serif;
+  }
+  .btn-brass{background:var(--brass);color:#fff;}
+  .btn-brass:hover{background:var(--brass-dark);}
+  .btn-ghost{background:transparent;border:1px solid var(--hair-strong);color:var(--ink-soft);}
+
+  table.ledger{width:100%;border-collapse:collapse;font-size:13px;}
+  table.ledger th{
+    text-align:left;color:var(--ink-soft);font-weight:500;font-size:11px;
+    padding:6px 8px;border-bottom:1px solid var(--hair-strong);
+  }
+  table.ledger td{padding:8px 8px;border-bottom:1px solid var(--hair);vertical-align:middle;}
+  table.ledger tr:last-child td{border-bottom:none;}
+  table.ledger td.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .tag{
+    display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;
+    color:#fff;font-weight:500;
+  }
+  .del-btn{
+    background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:15px;
+    padding:2px 4px;
+  }
+  .del-btn:hover{color:var(--rust);}
+  .edit-btn{
+    background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:14px;
+    padding:2px 4px;
+  }
+  .edit-btn:hover{color:var(--brass);}
+  .row-actions{white-space:nowrap;}
+  .empty-row{color:var(--ink-faint);font-size:12px;text-align:center;padding:18px 0;}
+  .foot-row td{font-weight:700;border-top:1px solid var(--hair-strong);border-bottom:none;padding-top:10px;}
+
+  .budget-row{display:grid;grid-template-columns:90px 1fr 130px;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--hair);}
+  .budget-row:last-child{border-bottom:none;}
+  .budget-cat{font-size:13px;font-weight:500;}
+  .budget-bar-track{height:8px;background:var(--paper);border-radius:6px;overflow:hidden;border:1px solid var(--hair);}
+  .budget-bar-fill{height:100%;border-radius:6px;}
+  .budget-nums{font-size:11px;color:var(--ink-soft);margin-top:4px;font-variant-numeric:tabular-nums;}
+  .budget-input{width:110px;text-align:right;}
+
+  .legend-row{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:10px;font-size:12px;color:var(--ink-soft);}
+  .saving-row{grid-template-columns:170px 1fr 30px;}
+  .sub-tabnav{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+  .sub-tab-btn{
+    padding:6px 14px;border-radius:20px;border:1px solid var(--hair-strong);
+    background:var(--paper-2);font-size:13px;cursor:pointer;color:var(--ink-soft);
+    font-family:'Noto Sans KR', sans-serif;
+  }
+  .sub-tab-btn.active{background:var(--brass);color:#fff;border-color:var(--brass);font-weight:700;}
+  .legend-dot{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;}
+
+  .section-note{font-size:12px;color:var(--ink-faint);margin-top:-6px;margin-bottom:14px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const FIXED_CATS = ['주거비','통신비','보험','할부/대출','정기구독','교육','저축/투자','헌금'];
+const VAR_CATS = ['식비','생활용품','교육비','교통비','의류비','문화생활','경조사비','선물비','병원비','용돈','기타'];
+const INCOME_CATS = ['남편 수입','아내 수입','부수입','기타 수입'];
+
+const CAT_COLOR = {
+  '주거비':'#8C6D46','통신비':'#4472A8','보험':'#6B8F71','할부/대출':'#B08D57',
+  '정기구독':'#7D6B87','교육':'#5B7B9A','저축/투자':'#2F6F62','헌금':'#9C6B44',
+  '식비':'#C1622D','생활용품':'#7A8B99','교육비':'#4472A8','교통비':'#5B7B9A',
+  '의류비':'#8B6F9E','문화생활':'#B08D57','경조사비':'#9C6B44','선물비':'#C1622D',
+  '병원비':'#B0463D','용돈':'#6B8F71','기타':'#7D7568',
+  '남편 수입':'#4472A8','아내 수입':'#C1622D','부수입':'#2F6F62','기타 수입':'#7D7568',
+  '적립성':'#2F6F62','일시납':'#A9832F','미분류':'#7D7568'
+};
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function escapeAttr(v){
+  return String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function parseAmountInput(v){
+  if(v === null || v === undefined) return 0;
+  const n = Number(String(v).replace(/[^0-9.-]/g,''));
+  return isNaN(n) ? 0 : n;
+}
+function formatAmountInput(el){
+  el.setAttribute('inputmode','numeric');
+  el.addEventListener('input', ()=>{
+    let raw = el.value.replace(/[^0-9]/g,'');
+    raw = raw.replace(/^0+(?=\d)/,'');
+    if(raw === ''){ el.value = ''; return; }
+    const caretAtEnd = el.selectionStart === el.value.length;
+    el.value = Number(raw).toLocaleString('ko-KR');
+    if(caretAtEnd) el.setSelectionRange(el.value.length, el.value.length);
+  });
+}
+function wireAmountInputs(root){
+  (root||document).querySelectorAll('.num-fmt').forEach(formatAmountInput);
+}
+function won(n){
+  n = Math.round(Number(n)||0);
+  const sign = n < 0 ? '-' : '';
+  return sign + '₩' + Math.abs(n).toLocaleString('ko-KR');
+}
+function todayKey(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+function monthLabel(key){
+  const [y,m] = key.split('-');
+  return y + '년 ' + parseInt(m,10) + '월';
+}
+function emptyMonthData(){
+  return { income:[], fixed:[], variable:[], budgets:{} };
+}
+
+let months = [];
+let savings = [];
+let investments = [];
+let invSubTab = '예금';
+let tossConfig = { url: '', token: '' };
+let tossSyncing = false;
+let tossLastSynced = null;
+let editingEntry = { kind: null, id: null };
+let editingSavingId = null;
+let editingInvestId = null;
+let currentMonth = todayKey();
+let currentTab = 'dashboard';
+let data = emptyMonthData();
+let charts = {};
+let addMonthFormOpen = false;
+let syncFormOpen = false;
+let deleteConfirmMonth = null;
+let toastTimer = null;
+
+const HAS_CLOUD_STORAGE = (typeof window !== 'undefined') && !!window.storage
+  && typeof window.storage.get === 'function' && typeof window.storage.set === 'function';
+
+let remoteConfig = null; // { url, token } — 여러 기기 동기화가 설정되면 채워짐
+
+function loadRemoteConfig(){
+  try{
+    const raw = localStorage.getItem('gagyebu_remote_config');
+    remoteConfig = raw ? JSON.parse(raw) : null;
+  }catch(e){ remoteConfig = null; }
+}
+
+function saveRemoteConfig(cfg){
+  remoteConfig = cfg;
+  try{ localStorage.setItem('gagyebu_remote_config', JSON.stringify(cfg)); }catch(e){}
+}
+
+function clearRemoteConfig(){
+  remoteConfig = null;
+  try{ localStorage.removeItem('gagyebu_remote_config'); }catch(e){}
+}
+
+function showToast(msg, tone){
+  let el = document.getElementById('toastBanner');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'toastBanner';
+    el.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:9999;font-family:"Noto Sans KR",sans-serif;box-shadow:0 4px 14px rgba(0,0,0,0.18);max-width:90vw;text-align:center;';
+    document.body.appendChild(el);
+  }
+  el.style.background = tone === 'ok' ? '#2F6F62' : '#B0463D';
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.style.display='none'; }, 4000);
+}
+
+async function withRetry(fn, retries, delayMs){
+  retries = retries===undefined ? 2 : retries;
+  delayMs = delayMs===undefined ? 500 : delayMs;
+  let lastErr;
+  for(let i=0;i<=retries;i++){
+    try{ return await fn(); }
+    catch(e){
+      lastErr = e;
+      if(i<retries) await new Promise(r=>setTimeout(r, delayMs*(i+1)));
+    }
+  }
+  throw lastErr;
+}
+
+// ---- 원격(서버) 요청 — 여러 기기 동기화가 설정된 경우 사용 ----
+async function remoteRequest(pathAndQuery, options){
+  const base = (remoteConfig && remoteConfig.url) ? remoteConfig.url.replace(/\/$/,'') : '';
+  const url = base + pathAndQuery;
+  return withRetry(async ()=>{
+    const resp = await fetch(url, Object.assign({}, options, {
+      headers: Object.assign({ 'x-app-token': (remoteConfig && remoteConfig.token) || '' }, (options && options.headers) || {})
+    }));
+    if(!resp.ok){
+      const text = await resp.text().catch(()=> '');
+      throw new Error('서버 응답 오류 ('+resp.status+') '+text);
+    }
+    return resp;
+  }, 2, 500);
+}
+
+// ---- 기존(로컬/클라우드-미러) 저장 방식 — 동기화 미설정 시, 또는 마이그레이션용 ----
+async function legacyStorageGet(key){
+  if(HAS_CLOUD_STORAGE){
+    try{
+      const r = await withRetry(()=>window.storage.get(key), 2, 400);
+      return r ? r.value : null;
+    }catch(e){ console.error('불러오기 실패', key, e); return null; }
+  }
+  try{ return localStorage.getItem('budget_app_'+key); }catch(e){ return null; }
+}
+
+async function legacyStorageSet(key, value){
+  if(HAS_CLOUD_STORAGE){
+    try{
+      await withRetry(()=>window.storage.set(key, value), 2, 500);
+      return true;
+    }catch(e){
+      console.error('저장 실패', e);
+      showToast('저장에 실패했습니다. 네트워크 확인 후 다시 시도해주세요.');
+      return false;
+    }
+  }
+  try{ localStorage.setItem('budget_app_'+key, value); return true; }
+  catch(e){ console.error('저장 실패', e); showToast('저장에 실패했습니다.'); return false; }
+}
+
+async function legacyStorageDelete(key){
+  if(HAS_CLOUD_STORAGE){
+    try{ await withRetry(()=>window.storage.delete(key), 2, 400); }
+    catch(e){ console.error('삭제 실패', key, e); }
+    return;
+  }
+  try{ localStorage.removeItem('budget_app_'+key); }catch(e){}
+}
+
+// ---- 이 아래 세 함수가 앱 전체에서 실제로 쓰는 저장 함수입니다 ----
+// 여러 기기 동기화가 설정되어 있으면 서버로, 아니면 예전 방식(로컬)으로 갑니다.
+async function storageGet(key){
+  if(remoteConfig && remoteConfig.token){
+    try{
+      const resp = await remoteRequest('/budget/kv?key='+encodeURIComponent(key));
+      const data = await resp.json();
+      return data.value;
+    }catch(e){
+      console.error('원격 불러오기 실패', key, e);
+      showToast('서버에서 데이터를 불러오지 못했습니다: '+(e.message||e));
+      return null;
+    }
+  }
+  return legacyStorageGet(key);
+}
+
+async function storageSet(key, value){
+  if(remoteConfig && remoteConfig.token){
+    try{
+      await remoteRequest('/budget/kv', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value })
+      });
+      return true;
+    }catch(e){
+      console.error('원격 저장 실패', key, e);
+      showToast('서버 저장에 실패했습니다: '+(e.message||e));
+      return false;
+    }
+  }
+  return legacyStorageSet(key, value);
+}
+
+async function storageDelete(key){
+  if(remoteConfig && remoteConfig.token){
+    try{ await remoteRequest('/budget/kv?key='+encodeURIComponent(key), { method: 'DELETE' }); }
+    catch(e){ console.error('원격 삭제 실패', key, e); }
+    return;
+  }
+  return legacyStorageDelete(key);
+}
+
+// ---- 이 기기에 이미 있던 로컬 데이터를 서버로 한 번에 옮기기 ----
+async function migrateLocalDataToServer(){
+  if(!remoteConfig || !remoteConfig.token){ showToast('먼저 동기화 설정을 저장해주세요.'); return; }
+  showToast('이 기기의 데이터를 서버로 옮기는 중...', 'ok');
+  try{
+    const keysToMove = [];
+    const monthsRaw = await legacyStorageGet('months-list');
+    if(monthsRaw){
+      keysToMove.push('months-list');
+      try{
+        const monthsArr = JSON.parse(monthsRaw);
+        if(Array.isArray(monthsArr)) monthsArr.forEach(m=>keysToMove.push('month:'+m));
+      }catch(e){}
+    }
+    ['savings-list','investments-list','toss-sync-config'].forEach(k=>keysToMove.push(k));
+
+    let moved = 0;
+    for(const key of keysToMove){
+      const val = await legacyStorageGet(key);
+      if(val !== null && val !== undefined){
+        await remoteRequest('/budget/kv', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, value: val })
+        });
+        moved++;
+      }
+    }
+    showToast(moved+'개 항목을 서버로 옮겼습니다. 다시 불러올게요.', 'ok');
+    await loadMonthList();
+    await loadSavings();
+    await loadInvestments();
+    await loadTossConfig();
+    data = await loadMonthData(currentMonth);
+    render();
+  }catch(e){
+    console.error(e);
+    showToast('마이그레이션 중 오류가 발생했습니다: '+(e.message||e));
+  }
+}
+
+// ---- 백업 파일로 내보내기 / 불러오기 (기기를 옮길 때 수동 백업용) ----
+async function exportBackup(){
+  try{
+    const monthsRaw = await storageGet('months-list');
+    const monthsArr = monthsRaw ? JSON.parse(monthsRaw) : [];
+    const monthData = {};
+    for(const m of monthsArr){
+      const raw = await storageGet('month:'+m);
+      if(raw) monthData[m] = JSON.parse(raw);
+    }
+    const savingsRaw = await storageGet('savings-list');
+    const investmentsRaw = await storageGet('investments-list');
+    const tossRaw = await storageGet('toss-sync-config');
+    const backup = {
+      exportedAt: new Date().toISOString(),
+      months: monthsArr,
+      monthData,
+      savings: savingsRaw ? JSON.parse(savingsRaw) : [],
+      investments: investmentsRaw ? JSON.parse(investmentsRaw) : [],
+      tossConfig: tossRaw ? JSON.parse(tossRaw) : null
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '가계부백업_' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('백업 파일을 저장했습니다.', 'ok');
+  }catch(e){
+    console.error(e);
+    showToast('백업 파일 저장에 실패했습니다: '+(e.message||e));
+  }
+}
+
+function importBackup(file){
+  const reader = new FileReader();
+  reader.onload = async ()=>{
+    try{
+      const backup = JSON.parse(reader.result);
+      if(!backup || !Array.isArray(backup.months)){ showToast('올바른 백업 파일이 아닙니다.'); return; }
+      await storageSet('months-list', JSON.stringify(backup.months));
+      for(const m of backup.months){
+        const md = backup.monthData && backup.monthData[m];
+        if(md) await storageSet('month:'+m, JSON.stringify(md));
+      }
+      if(backup.savings) await storageSet('savings-list', JSON.stringify(backup.savings));
+      if(backup.investments) await storageSet('investments-list', JSON.stringify(backup.investments));
+      if(backup.tossConfig) await storageSet('toss-sync-config', JSON.stringify(backup.tossConfig));
+      showToast('백업을 불러왔습니다.', 'ok');
+      await loadMonthList();
+      await loadSavings();
+      await loadInvestments();
+      await loadTossConfig();
+      data = await loadMonthData(currentMonth);
+      render();
+    }catch(e){
+      console.error(e);
+      showToast('백업 파일을 읽지 못했습니다: '+(e.message||e));
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function loadMonthList(){
+  try{
+    const v = await storageGet('months-list');
+    months = v ? JSON.parse(v) : [];
+  }catch(e){ months = []; }
+  if(!Array.isArray(months) || months.length === 0){
+    months = [todayKey()];
+    await storageSet('months-list', JSON.stringify(months));
+  }
+  if(!months.includes(currentMonth)) currentMonth = months[months.length-1];
+}
+
+async function saveMonthList(){
+  await storageSet('months-list', JSON.stringify(months));
+}
+
+async function loadSavings(){
+  try{
+    const v = await storageGet('savings-list');
+    savings = v ? JSON.parse(v) : [];
+  }catch(e){ savings = []; }
+  if(!Array.isArray(savings)) savings = [];
+}
+
+async function saveSavings(){
+  await storageSet('savings-list', JSON.stringify(savings));
+}
+
+function readSavingForm(form){
+  const name = form.querySelector('[name=sname]').value.trim();
+  const type = form.querySelector('[name=stype]').value;
+  const payAmount = parseAmountInput(form.querySelector('[name=spay]').value);
+  const startDate = form.querySelector('[name=sstart]').value;
+  const endDate = form.querySelector('[name=send]').value;
+  const rateType = form.querySelector('[name=srateType]').value;
+  const rateValue = form.querySelector('[name=srate]').value;
+  const expected = parseAmountInput(form.querySelector('[name=sexpected]').value);
+  if(!name){ showToast('저축명을 입력해주세요.'); return null; }
+  if(!expected || expected <= 0){ showToast('만기시 기대금액을 입력해주세요.'); return null; }
+  if(startDate && endDate && endDate < startDate){ showToast('만기일이 시작일보다 빠를 수 없습니다.'); return null; }
+  return { name, type, payAmount, startDate, endDate, rateType, rateValue: rateValue ? Number(rateValue) : null, expected };
+}
+
+async function addSaving(form){
+  const parsed = readSavingForm(form);
+  if(!parsed) return;
+  savings.push(Object.assign({ id: uid() }, parsed));
+  await saveSavings();
+  render();
+}
+
+async function updateSaving(form){
+  const idx = savings.findIndex(x=>x.id===editingSavingId);
+  if(idx===-1){ editingSavingId = null; render(); return; }
+  const parsed = readSavingForm(form);
+  if(!parsed) return;
+  savings[idx] = Object.assign({}, savings[idx], parsed);
+  await saveSavings();
+  editingSavingId = null;
+  render();
+}
+
+function startEditSaving(id){
+  editingSavingId = id;
+  render();
+}
+
+function cancelEditSaving(){
+  editingSavingId = null;
+  render();
+}
+
+async function deleteSaving(id){
+  savings = savings.filter(x=>x.id !== id);
+  if(editingSavingId===id) editingSavingId = null;
+  await saveSavings();
+  render();
+}
+
+const INV_TYPES = ['예금','적금','주식','보험','채권'];
+const INV_COLOR = {'예금':'#4472A8','적금':'#2F6F62','주식':'#B0463D','보험':'#A9832F','채권':'#7D6B87'};
+
+async function loadInvestments(){
+  try{
+    const v = await storageGet('investments-list');
+    investments = v ? JSON.parse(v) : [];
+  }catch(e){ investments = []; }
+  if(!Array.isArray(investments)) investments = [];
+}
+
+async function saveInvestments(){
+  await storageSet('investments-list', JSON.stringify(investments));
+}
+
+async function loadTossConfig(){
+  try{
+    const v = await storageGet('toss-sync-config');
+    const parsed = v ? JSON.parse(v) : null;
+    if(parsed && typeof parsed==='object'){
+      tossConfig = { url: parsed.url||'', token: parsed.token||'' };
+      tossLastSynced = parsed.lastSynced || null;
+    }
+  }catch(e){ /* keep defaults */ }
+}
+
+async function saveTossConfig(){
+  await storageSet('toss-sync-config', JSON.stringify(Object.assign({}, tossConfig, { lastSynced: tossLastSynced })));
+}
+
+function updateTossConfigFromForm(form){
+  tossConfig.url = form.querySelector('[name=tossUrl]').value.trim().replace(/\/$/,'');
+  tossConfig.token = form.querySelector('[name=tossToken]').value.trim();
+}
+
+async function saveTossConfigFromForm(form){
+  updateTossConfigFromForm(form);
+  await saveTossConfig();
+  showToast('연동 정보가 저장되었습니다.', 'ok');
+  render();
+}
+
+async function syncTossHoldings(){
+  if(!tossConfig.url || !tossConfig.token){
+    showToast('프록시 서버 주소와 앱 토큰을 먼저 입력하고 저장해주세요.');
+    return;
+  }
+  tossSyncing = true;
+  render();
+  try{
+    const resp = await fetch(tossConfig.url + '/holdings', {
+      headers: { 'x-app-token': tossConfig.token }
+    });
+    if(!resp.ok){
+      const body = await resp.text().catch(()=> '');
+      throw new Error('서버 응답 오류 ('+resp.status+') '+body);
+    }
+    const data = await resp.json();
+    const items = Array.isArray(data.items) ? data.items : [];
+    let updated = 0, added = 0;
+    const today = new Date().toISOString().slice(0,10);
+    items.forEach(it=>{
+      if(!it.symbol && !it.name) return;
+      const idx = investments.findIndex(x=>x.type==='주식' && x.externalId && x.externalId===it.symbol);
+      const qty = Number(it.qty)||null;
+      const price = Number(it.currentPrice)||null;
+      const amount = Number(it.purchaseAmount) || (qty && Number(it.avgPrice) ? qty*Number(it.avgPrice) : 0);
+      if(idx!==-1){
+        investments[idx] = Object.assign({}, investments[idx], {
+          name: it.name || investments[idx].name,
+          qty, price,
+          amount: amount || investments[idx].amount
+        });
+        updated++;
+      } else {
+        investments.push({
+          id: uid(), type:'주식', name: it.name || it.symbol, amount: amount||0,
+          date: today, memo: '토스증권 자동 연동', qty, price,
+          externalId: it.symbol, source: 'toss'
+        });
+        added++;
+      }
+    });
+    await saveInvestments();
+    tossLastSynced = new Date().toISOString();
+    await saveTossConfig();
+    showToast(`동기화 완료 — 신규 ${added}건, 갱신 ${updated}건`, 'ok');
+  }catch(err){
+    console.error(err);
+    showToast('동기화에 실패했습니다: '+(err.message||err));
+  }
+  tossSyncing = false;
+  render();
+}
+
+function readInvestmentForm(type, form){
+  const name = form.querySelector('[name=iname]').value.trim();
+  const amount = parseAmountInput(form.querySelector('[name=iamount]').value);
+  const date = form.querySelector('[name=idate]').value;
+  const memoEl = form.querySelector('[name=imemo]');
+  const memo = memoEl ? memoEl.value.trim() : '';
+  if(!name){ showToast('상품명/종목명을 입력해주세요.'); return null; }
+  if(!amount || amount <= 0){ showToast('금액을 입력해주세요.'); return null; }
+
+  const item = { type, name, amount, date, memo };
+
+  if(type==='예금' || type==='적금' || type==='채권'){
+    const rate = form.querySelector('[name=irate]').value;
+    const maturity = form.querySelector('[name=imaturity]').value;
+    if(maturity && date && maturity < date){ showToast('만기일이 시작일보다 빠를 수 없습니다.'); return null; }
+    item.rate = rate ? Number(rate) : null;
+    item.maturityDate = maturity || '';
+  } else if(type==='주식'){
+    const qty = form.querySelector('[name=iqty]').value;
+    const priceEl = form.querySelector('[name=iprice]');
+    const price = priceEl ? parseAmountInput(priceEl.value) : 0;
+    item.qty = qty ? Number(qty) : null;
+    item.price = price || null;
+  } else if(type==='보험'){
+    const payType = form.querySelector('[name=ipaytype]').value;
+    const rateType = form.querySelector('[name=irateType2]').value;
+    const rateVal = form.querySelector('[name=irate2]').value;
+    const maturity = form.querySelector('[name=imaturity2]').value;
+    const expected = parseAmountInput(form.querySelector('[name=iexpected]').value);
+    if(maturity && date && maturity < date){ showToast('만기일이 시작일보다 빠를 수 없습니다.'); return null; }
+    item.payType = payType;
+    item.rateType = rateType;
+    item.rateValue = rateVal ? Number(rateVal) : null;
+    item.maturityDate = maturity || '';
+    item.expected = expected || null;
+  }
+  return item;
+}
+
+async function addInvestment(type, form){
+  const item = readInvestmentForm(type, form);
+  if(!item) return;
+  item.id = uid();
+  investments.push(item);
+  await saveInvestments();
+  render();
+}
+
+async function updateInvestment(type, form){
+  const idx = investments.findIndex(x=>x.id===editingInvestId);
+  if(idx===-1){ editingInvestId = null; render(); return; }
+  const item = readInvestmentForm(type, form);
+  if(!item) return;
+  item.id = editingInvestId;
+  investments[idx] = item;
+  await saveInvestments();
+  editingInvestId = null;
+  render();
+}
+
+function startEditInvestment(id){
+  editingInvestId = id;
+  render();
+}
+
+function cancelEditInvestment(){
+  editingInvestId = null;
+  render();
+}
+
+async function deleteInvestment(id){
+  investments = investments.filter(x=>x.id !== id);
+  if(editingInvestId===id) editingInvestId = null;
+  await saveInvestments();
+  render();
+}
+
+function switchInvestTab(t){
+  invSubTab = t;
+  editingInvestId = null;
+  render();
+}
+
+function investDetail(x){
+  if(x.type==='예금' || x.type==='적금' || x.type==='채권'){
+    const bits = [];
+    if(x.rate!==null && x.rate!==undefined) bits.push('금리 '+x.rate+'%');
+    if(x.maturityDate) bits.push('만기 '+x.maturityDate);
+    return bits.length ? bits.join(' · ') : '-';
+  }
+  if(x.type==='주식'){
+    const bits = [];
+    if(x.qty) bits.push(x.qty+'주');
+    if(x.price) bits.push('현재가 '+won(x.price));
+    if(x.qty && x.price){
+      const val = x.qty * x.price;
+      const pl = val - Number(x.amount||0);
+      const plPct = x.amount ? (pl/x.amount*100) : 0;
+      const color = pl >= 0 ? 'var(--jade)' : 'var(--rust)';
+      bits.push('평가금액 '+won(val));
+      bits.push(`<span style="color:${color};font-weight:700;">${pl>=0?'+':''}${won(pl)} (${plPct.toFixed(1)}%)</span>`);
+    }
+    return bits.length ? bits.join(' · ') : '-';
+  }
+  if(x.type==='보험'){
+    const bits = [];
+    if(x.payType) bits.push(x.payType==='installment' ? '적립성' : '일시납');
+    if(x.rateValue!==null && x.rateValue!==undefined){
+      bits.push((x.rateType==='maturity' ? '만기시 이자율' : '연 이자') + ' ' + x.rateValue + '%');
+    }
+    if(x.maturityDate) bits.push('만기 '+x.maturityDate);
+    if(x.expected) bits.push('기대금액 '+won(x.expected));
+    return bits.length ? bits.join(' · ') : '-';
+  }
+  return '-';
+}
+
+async function loadMonthData(key){
+  try{
+    const v = await storageGet('month:'+key);
+    const d = v ? JSON.parse(v) : emptyMonthData();
+    d.income = d.income || []; d.fixed = d.fixed || []; d.variable = d.variable || []; d.budgets = d.budgets || {};
+    return d;
+  }catch(e){ return emptyMonthData(); }
+}
+
+async function saveMonthData(){
+  await storageSet('month:'+currentMonth, JSON.stringify(data));
+}
+
+function totals(){
+  const income = data.income.reduce((s,x)=>s+Number(x.amount||0),0);
+  const fixed = data.fixed.reduce((s,x)=>s+Number(x.amount||0),0);
+  const variable = data.variable.reduce((s,x)=>s+Number(x.amount||0),0);
+  const savings = data.fixed.filter(x=>x.category==='저축/투자').reduce((s,x)=>s+Number(x.amount||0),0);
+  const expense = fixed + variable;
+  const balance = income - expense;
+  return {income, fixed, variable, expense, savings, balance};
+}
+
+function categoryTotals(){
+  const map = {};
+  [...data.fixed, ...data.variable].forEach(x=>{
+    map[x.category] = (map[x.category]||0) + Number(x.amount||0);
+  });
+  return map;
+}
+
+async function switchMonth(key){
+  currentMonth = key;
+  data = await loadMonthData(currentMonth);
+  render();
+}
+
+async function createMonthWithBudgetCopy(m){
+  if(months.includes(m)) return true;
+  const priorCandidates = months.filter(x=>x<m).sort();
+  const prior = priorCandidates.length ? priorCandidates[priorCandidates.length-1] : null;
+  let budgets = {};
+  let variable = [];
+  let fixed = [];
+  if(prior){
+    const priorData = await loadMonthData(prior);
+    budgets = Object.assign({}, priorData.budgets);
+    variable = (priorData.variable || []).map(x=>Object.assign({}, x, { id: uid() }));
+    fixed = (priorData.fixed || [])
+      .filter(x=>x.category==='할부/대출' && x.installmentTotal && x.installmentNo < x.installmentTotal)
+      .map(x=>Object.assign({}, x, { id: uid(), installmentNo: x.installmentNo + 1 }));
+  }
+  const newData = emptyMonthData();
+  newData.budgets = budgets;
+  newData.variable = variable;
+  newData.fixed = fixed;
+  const ok = await storageSet('month:'+m, JSON.stringify(newData));
+  if(ok) months.push(m);
+  return ok;
+}
+
+async function addMonthsFromInput(rawVal){
+  const v = (rawVal||'').trim();
+  let targets = [];
+  if(/^\d{4}$/.test(v)){
+    for(let i=1;i<=12;i++) targets.push(v+'-'+String(i).padStart(2,'0'));
+  } else if(/^\d{4}-\d{2}$/.test(v)){
+    targets.push(v);
+  } else {
+    showToast('YYYY 또는 YYYY-MM 형식으로 입력해주세요. (예: 2026 또는 2026-04)');
+    return;
+  }
+  let firstNew = null;
+  let failed = [];
+  for(const m of targets){
+    if(!months.includes(m)){
+      const ok = await createMonthWithBudgetCopy(m);
+      if(ok){ if(!firstNew) firstNew = m; }
+      else { failed.push(m); }
+      if(targets.length > 1) await new Promise(r=>setTimeout(r, 150));
+    }
+  }
+  months.sort();
+  await saveMonthList();
+  addMonthFormOpen = false;
+  if(failed.length){
+    showToast(failed.length+'개 달 추가에 실패했습니다: '+failed.join(', ')+' — 다시 시도해주세요.');
+  } else if(firstNew){
+    showToast(monthLabel(firstNew)+(targets.length>1?' 외 '+(targets.length-1)+'개 달이 추가되었습니다.':'이 추가되었습니다.'), 'ok');
+  }
+  await switchMonth(firstNew || currentMonth);
+}
+
+function openAddMonthForm(){
+  addMonthFormOpen = true;
+  render();
+}
+
+function closeAddMonthForm(){
+  addMonthFormOpen = false;
+  render();
+}
+
+function requestDeleteMonth(m){
+  deleteConfirmMonth = m;
+  render();
+}
+
+function cancelDeleteMonth(){
+  deleteConfirmMonth = null;
+  render();
+}
+
+async function confirmDeleteMonth(m){
+  if(months.length <= 1){
+    showToast('마지막 남은 달은 삭제할 수 없습니다.');
+    deleteConfirmMonth = null;
+    render();
+    return;
+  }
+  months = months.filter(x=>x!==m);
+  await saveMonthList();
+  await storageDelete('month:'+m);
+  deleteConfirmMonth = null;
+  if(currentMonth === m){
+    const newCurrent = months[months.length-1];
+    currentMonth = newCurrent;
+    data = await loadMonthData(newCurrent);
+  }
+  render();
+}
+
+function switchTab(t){
+  currentTab = t;
+  render();
+}
+
+function readEntryForm(kind, form){
+  const day = form.querySelector('[name=day]').value;
+  const desc = form.querySelector('[name=desc]').value.trim();
+  const amount = parseAmountInput(form.querySelector('[name=amount]').value);
+  const category = form.querySelector('[name=category]').value;
+  const sub = form.querySelector('[name=sub]') ? form.querySelector('[name=sub]').value.trim() : '';
+  const memo = form.querySelector('[name=memo]') ? form.querySelector('[name=memo]').value.trim() : '';
+  if(!desc){ showToast('내용을 입력해주세요.'); return null; }
+  if(!amount || amount <= 0){ showToast('금액을 입력해주세요.'); return null; }
+  if(day && (Number(day) < 1 || Number(day) > 31)){ showToast('일자는 1~31 사이로 입력해주세요.'); return null; }
+  const result = { day: day ? Number(day) : null, desc, amount, category, sub, memo };
+  if(kind==='fixed'){
+    if(category==='할부/대출'){
+      const installEl = form.querySelector('[name=installTotal]');
+      const installTotal = installEl ? Number(installEl.value) : 0;
+      if(installTotal && installTotal > 0){
+        result.installmentTotal = installTotal;
+        result.installmentNo = null; // filled in by caller (new=1, existing=preserved/clamped)
+      }
+    }
+  }
+  return result;
+}
+
+async function addEntry(kind, form){
+  const parsed = readEntryForm(kind, form);
+  if(!parsed) return;
+  const entry = Object.assign({ id: uid() }, parsed);
+  if(entry.installmentTotal) entry.installmentNo = 1;
+  data[kind].push(entry);
+  await saveMonthData();
+  render();
+}
+
+async function updateEntry(kind, form){
+  const id = editingEntry.id;
+  const idx = data[kind].findIndex(e=>e.id===id);
+  if(idx===-1){ editingEntry = { kind:null, id:null }; render(); return; }
+  const parsed = readEntryForm(kind, form);
+  if(!parsed) return;
+  const existing = data[kind][idx];
+  const updated = Object.assign({}, existing, parsed);
+  if(parsed.installmentTotal){
+    updated.installmentNo = existing.installmentNo || 1;
+    if(updated.installmentNo > updated.installmentTotal) updated.installmentNo = updated.installmentTotal;
+  } else {
+    delete updated.installmentTotal;
+    delete updated.installmentNo;
+  }
+  data[kind][idx] = updated;
+  await saveMonthData();
+  editingEntry = { kind:null, id:null };
+  render();
+}
+
+function startEditEntry(kind, id){
+  editingEntry = { kind, id };
+  render();
+}
+
+function cancelEditEntry(){
+  editingEntry = { kind:null, id:null };
+  render();
+}
+
+async function deleteEntry(kind, id){
+  data[kind] = data[kind].filter(x=>x.id !== id);
+  if(editingEntry.kind===kind && editingEntry.id===id) editingEntry = { kind:null, id:null };
+  await saveMonthData();
+  render();
+}
+
+async function setBudget(category, value){
+  data.budgets[category] = parseAmountInput(value);
+  await saveMonthData();
+  render();
+}
+
+function fmtDate(d){
+  if(!d) return '-';
+  const parts = d.split('-');
+  if(parts.length===3) return parts[1]+'.'+parts[2];
+  return d;
+}
+function dayOf(x){
+  if(x.day) return Number(x.day);
+  if(x.date){
+    const p = x.date.split('-');
+    if(p.length===3) return parseInt(p[2],10);
+  }
+  return 0;
+}
+function displayDay(x){
+  const d = dayOf(x);
+  return d ? d+'일' : '-';
+}
+
+function render(){
+  const t = totals();
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="masthead">
+      <div>
+        <h1>우리집 가계부</h1>
+        <p>매달 수입과 지출을 기록하고, 예산 대비 흐름을 한눈에 확인합니다.</p>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn ${remoteConfig&&remoteConfig.token?'btn-brass':'btn-ghost'}" id="syncSettingsBtn" style="font-size:12px;">${remoteConfig&&remoteConfig.token?'☁ 동기화 켜짐':'☁ 여러 기기 동기화 설정'}</button>
+          <button class="btn btn-ghost" id="exportBackupBtn" style="font-size:12px;">⬇ 백업 파일 저장</button>
+          <button class="btn btn-ghost" id="importBackupBtn" style="font-size:12px;">⬆ 백업 파일 불러오기</button>
+          <input type="file" id="importBackupInput" accept="application/json" style="display:none;">
+        </div>
+      </div>
+      ${syncFormOpen ? `
+      <div class="card" style="width:100%;margin-top:10px;">
+        <div class="panel-title">여러 기기 동기화 설정</div>
+        <div class="section-note">서버 주소와 앱 토큰을 입력하면, 컴퓨터·폰 어디서든 같은 데이터를 보게 돼요. (토스증권 연동 때 만든 서버와 같은 서버, 같은 앱 토큰을 쓰시면 됩니다.)</div>
+        <form class="entry-form" id="syncForm">
+          <div class="field grow"><label>서버 주소</label><input type="text" name="syncUrl" placeholder="예: http://150.230.106.57:3000" value="${remoteConfig?escapeAttr(remoteConfig.url||''):(location.protocol.indexOf('http')===0?location.origin:'')}"></div>
+          <div class="field grow"><label>앱 토큰</label><input type="text" name="syncToken" placeholder="APP_TOKEN 값" value="${remoteConfig?escapeAttr(remoteConfig.token||''):''}"></div>
+          <button type="button" class="btn btn-brass" id="saveSyncBtn">저장</button>
+          ${remoteConfig&&remoteConfig.token ? `<button type="button" class="btn btn-ghost" id="migrateSyncBtn">이 기기 데이터 서버로 업로드</button><button type="button" class="btn btn-ghost" id="disconnectSyncBtn">동기화 끄기</button>` : ''}
+        </form>
+      </div>
+      ` : ''}
+    </div>
+      <div class="month-tabs">
+        ${months.map(m=>{
+          if(deleteConfirmMonth === m){
+            return `<div class="month-tab active month-tab-confirm">
+              <span>${monthLabel(m)} 삭제할까요?</span>
+              <button class="btn btn-brass" data-confirm-del="${m}">예</button>
+              <button class="btn btn-ghost" data-cancel-del="1">아니오</button>
+            </div>`;
+          }
+          return `<div class="month-tab ${m===currentMonth?'active':''}" data-month="${m}">
+            <span class="month-tab-label">${monthLabel(m)}</span>
+            <button class="month-del" data-del="${m}" title="이 달 삭제">×</button>
+          </div>`;
+        }).join('')}
+        ${addMonthFormOpen ? `
+          <div class="month-add-form">
+            <input type="text" id="newMonthInput" placeholder="2026 또는 2026-04">
+            <button class="btn btn-brass" id="confirmAddMonth">추가</button>
+            <button class="btn btn-ghost" id="cancelAddMonth">취소</button>
+          </div>
+        ` : `<button class="month-add" id="addMonthBtn" title="달 추가">+</button>`}
+      </div>
+    </div>
+    ${addMonthFormOpen ? `<div class="month-hint" style="margin-top:-14px;margin-bottom:14px;">연도만 입력(예: 2026)하면 1~12월이 한번에 추가되고, 이전 달의 예산·변동지출·진행중인 할부가 자동으로 이어집니다.</div>` : ''}
+
+    <div class="summary-strip">
+      <div class="summary-cell">
+        <div class="summary-label">총 수입</div>
+        <div class="summary-value">${won(t.income)}</div>
+      </div>
+      <div class="summary-cell">
+        <div class="summary-label">총 지출</div>
+        <div class="summary-value">${won(t.expense)}</div>
+      </div>
+      <div class="summary-cell">
+        <div class="summary-label">총 저축</div>
+        <div class="summary-value">${won(t.savings)}</div>
+      </div>
+      <div class="summary-cell">
+        <div class="summary-label">이번달 수지</div>
+        <div class="summary-value ${t.balance>=0?'pos':'neg'}">${t.balance>=0?'▲ ':'▼ '}${won(Math.abs(t.balance))}</div>
+      </div>
+    </div>
+
+    <div class="tabnav">
+      <button data-tab="dashboard" class="${currentTab==='dashboard'?'active':''}">대시보드</button>
+      <button data-tab="income" class="${currentTab==='income'?'active':''}">수입</button>
+      <button data-tab="fixed" class="${currentTab==='fixed'?'active':''}">고정지출</button>
+      <button data-tab="variable" class="${currentTab==='variable'?'active':''}">변동지출</button>
+      <button data-tab="budget" class="${currentTab==='budget'?'active':''}">예산</button>
+      <button data-tab="savings" class="${currentTab==='savings'?'active':''}">저축</button>
+      <button data-tab="invest" class="${currentTab==='invest'?'active':''}">투자</button>
+    </div>
+
+    <div id="tabContent"></div>
+  `;
+
+  document.querySelectorAll('.month-tab-label').forEach(el=>{
+    el.addEventListener('click', ()=>switchMonth(el.closest('.month-tab').dataset.month));
+  });
+  document.querySelectorAll('.month-del').forEach(el=>{
+    el.addEventListener('click', (e)=>{ e.stopPropagation(); requestDeleteMonth(el.dataset.del); });
+  });
+  document.querySelectorAll('[data-confirm-del]').forEach(el=>{
+    el.addEventListener('click', ()=>confirmDeleteMonth(el.dataset.confirmDel));
+  });
+  document.querySelectorAll('[data-cancel-del]').forEach(el=>{
+    el.addEventListener('click', cancelDeleteMonth);
+  });
+  if(addMonthFormOpen){
+    const input = document.getElementById('newMonthInput');
+    if(input) input.focus();
+    document.getElementById('confirmAddMonth').addEventListener('click', ()=>{
+      addMonthsFromInput(input.value);
+    });
+    document.getElementById('cancelAddMonth').addEventListener('click', closeAddMonthForm);
+    input.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter'){ e.preventDefault(); addMonthsFromInput(input.value); }
+      if(e.key==='Escape'){ e.preventDefault(); closeAddMonthForm(); }
+    });
+  } else {
+    document.getElementById('addMonthBtn').addEventListener('click', openAddMonthForm);
+  }
+  document.getElementById('exportBackupBtn').addEventListener('click', exportBackup);
+  document.getElementById('importBackupBtn').addEventListener('click', ()=>{
+    document.getElementById('importBackupInput').click();
+  });
+  document.getElementById('importBackupInput').addEventListener('change', (e)=>{
+    if(e.target.files[0]) importBackup(e.target.files[0]);
+    e.target.value = '';
+  });
+  document.getElementById('syncSettingsBtn').addEventListener('click', ()=>{
+    syncFormOpen = !syncFormOpen;
+    render();
+  });
+  if(syncFormOpen){
+    document.getElementById('saveSyncBtn').addEventListener('click', async ()=>{
+      const form = document.getElementById('syncForm');
+      const url = form.querySelector('[name=syncUrl]').value.trim().replace(/\/$/,'');
+      const token = form.querySelector('[name=syncToken]').value.trim();
+      if(!url || !token){ showToast('서버 주소와 앱 토큰을 모두 입력해주세요.'); return; }
+      saveRemoteConfig({ url, token });
+      showToast('동기화 설정이 저장되었습니다. 데이터를 다시 불러올게요.', 'ok');
+      await loadMonthList();
+      await loadSavings();
+      await loadInvestments();
+      await loadTossConfig();
+      data = await loadMonthData(currentMonth);
+      syncFormOpen = false;
+      render();
+    });
+    const migrateBtn = document.getElementById('migrateSyncBtn');
+    if(migrateBtn) migrateBtn.addEventListener('click', migrateLocalDataToServer);
+    const disconnectBtn = document.getElementById('disconnectSyncBtn');
+    if(disconnectBtn) disconnectBtn.addEventListener('click', async ()=>{
+      clearRemoteConfig();
+      showToast('동기화를 껐습니다. 이 기기의 로컬 데이터로 전환합니다.', 'ok');
+      await loadMonthList();
+      await loadSavings();
+      await loadInvestments();
+      await loadTossConfig();
+      data = await loadMonthData(currentMonth);
+      syncFormOpen = false;
+      render();
+    });
+  }
+  document.querySelectorAll('.tabnav button').forEach(el=>{
+    el.addEventListener('click', ()=>switchTab(el.dataset.tab));
+  });
+
+  const content = document.getElementById('tabContent');
+  if(currentTab==='dashboard') renderDashboard(content, t);
+  else if(currentTab==='income') renderEntryTab(content, 'income', '수입', INCOME_CATS, false);
+  else if(currentTab==='fixed') renderEntryTab(content, 'fixed', '고정지출', FIXED_CATS, true);
+  else if(currentTab==='variable') renderEntryTab(content, 'variable', '변동지출', VAR_CATS, true);
+  else if(currentTab==='budget') renderBudgetTab(content, t);
+  else if(currentTab==='savings') renderSavingsTab(content);
+  else if(currentTab==='invest') renderInvestTab(content);
+}
+
+function groupTotals(list){
+  const map = {};
+  list.forEach(x=>{
+    map[x.category] = (map[x.category]||0) + Number(x.amount||0);
+  });
+  return map;
+}
+
+function donutCardHtml(id, title, totalsMap, emptyMsg){
+  const keys = Object.keys(totalsMap).sort((a,b)=>totalsMap[b]-totalsMap[a]);
+  const isEmpty = keys.length===0;
+  const ariaText = keys.map(k=>k+' '+totalsMap[k]).join(', ');
+  return { keys, isEmpty, html: `
+    <div class="card">
+      <div class="panel-title">${title}</div>
+      ${isEmpty ? `<div class="legend-row"><span style="color:var(--ink-faint);">${emptyMsg}</span></div>` : `
+      <div class="legend-row">
+        ${keys.slice(0,8).map(c=>`<span><span class="legend-dot" style="background:${CAT_COLOR[c]||'#999'}"></span>${c} ${won(totalsMap[c])}</span>`).join('')}
+      </div>`}
+      <div style="position:relative;height:220px;">
+        <canvas id="${id}" role="img" aria-label="${title} 도넛 차트">${isEmpty ? emptyMsg : title+': '+ariaText}</canvas>
+      </div>
+    </div>` };
+}
+
+function savingsCardHtml(){
+  const typeTotals = {};
+  savings.forEach(s=>{
+    const label = s.type==='lumpsum' ? '일시납' : (s.type==='installment' ? '적립성' : '미분류');
+    typeTotals[label] = (typeTotals[label]||0) + Number(s.expected||0);
+  });
+  const keys = Object.keys(typeTotals).sort((a,b)=>typeTotals[b]-typeTotals[a]);
+  const total = savings.reduce((s,x)=>s+Number(x.expected||0),0);
+  const isEmpty = savings.length===0;
+  const html = `
+    <div class="card">
+      <div class="panel-title">저축 현황</div>
+      ${isEmpty ? `<div class="legend-row"><span style="color:var(--ink-faint);">아직 등록된 저축이 없습니다.</span></div>` : `
+      <div class="legend-row">
+        ${keys.map(k=>`<span><span class="legend-dot" style="background:${CAT_COLOR[k]||'#999'}"></span>${k} ${won(typeTotals[k])}</span>`).join('')}
+      </div>`}
+      <div style="position:relative;height:220px;">
+        <canvas id="savingsDonut" role="img" aria-label="저축 현황 도넛 차트">${isEmpty ? '아직 등록된 저축이 없습니다.' : '저축 현황: '+keys.map(k=>k+' '+typeTotals[k]).join(', ')}</canvas>
+      </div>
+      ${!isEmpty ? `<div class="section-note" style="margin-top:10px;">등록 ${savings.length}건 · 만기시 기대금액 합계 ${won(total)}</div>` : ''}
+    </div>`;
+  return { keys, typeTotals, html };
+}
+
+function collectMaturingAssets(){
+  const now = new Date(); now.setHours(0,0,0,0);
+  const WINDOW_DAYS = 31;
+  const results = [];
+  savings.forEach(s=>{
+    if(!s.endDate) return;
+    const d = new Date(s.endDate);
+    const diffDays = Math.round((d - now)/(1000*60*60*24));
+    if(Math.abs(diffDays) <= WINDOW_DAYS){
+      results.push({ name:s.name, source:'저축', date:s.endDate, amount:s.expected, diffDays });
+    }
+  });
+  investments.forEach(x=>{
+    if(!x.maturityDate) return;
+    const d = new Date(x.maturityDate);
+    const diffDays = Math.round((d - now)/(1000*60*60*24));
+    if(Math.abs(diffDays) <= WINDOW_DAYS){
+      results.push({ name:x.name, source:x.type, date:x.maturityDate, amount: x.expected || x.amount, diffDays });
+    }
+  });
+  results.sort((a,b)=>a.diffDays-b.diffDays);
+  return results;
+}
+
+function maturingAssetsHtml(){
+  const items = collectMaturingAssets();
+  if(items.length===0) return '';
+  return `
+  <div class="card" style="border-color:var(--brass);border-width:1.5px;">
+    <div class="panel-title">⏰ 만기 임박 자산 (±1개월)</div>
+    <table class="ledger">
+      <thead><tr><th>이름</th><th>구분</th><th>만기일</th><th>D-day</th><th style="text-align:right;">금액</th></tr></thead>
+      <tbody>
+        ${items.map(it=>{
+          const dtext = it.diffDays>0 ? 'D-'+it.diffDays : (it.diffDays===0 ? 'D-Day' : '만기 '+Math.abs(it.diffDays)+'일 경과');
+          const tagColor = it.source==='저축' ? '#A9832F' : (INV_COLOR[it.source]||'#7D7568');
+          return `<tr>
+            <td>${it.name}</td>
+            <td><span class="tag" style="background:${tagColor};">${it.source}</span></td>
+            <td>${it.date}</td>
+            <td style="color:${it.diffDays<0?'var(--rust)':'var(--ink)'};font-weight:700;">${dtext}</td>
+            <td class="num">${won(it.amount||0)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function renderDashboard(content, t){
+  const incomeTotals = groupTotals(data.income);
+  const fixedTotals = groupTotals(data.fixed);
+  const variableTotals = groupTotals(data.variable);
+  const catTotals = categoryTotals();
+
+  const topExpenses = [...data.fixed, ...data.variable]
+    .sort((a,b)=>Number(b.amount)-Number(a.amount)).slice(0,5);
+
+  const budgetCats = Object.keys(data.budgets).filter(c=>data.budgets[c]>0);
+
+  const incomeCard = donutCardHtml('incomeDonut', '수입 분류', incomeTotals, '아직 등록된 수입이 없습니다.');
+  const fixedCard = donutCardHtml('fixedDonut', '고정지출 분류', fixedTotals, '아직 등록된 고정지출이 없습니다.');
+  const variableCard = donutCardHtml('variableDonut', '변동지출 분류', variableTotals, '아직 등록된 변동지출이 없습니다.');
+  const savingsCard = savingsCardHtml();
+
+  content.innerHTML = `
+    ${maturingAssetsHtml()}
+    <div class="grid-2">
+      ${incomeCard.html}
+      ${savingsCard.html}
+    </div>
+    <div class="grid-2">
+      ${fixedCard.html}
+      ${variableCard.html}
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="panel-title">지출 TOP 5</div>
+        ${topExpenses.length===0 ? '<div class="empty-row">등록된 항목이 없습니다.</div>' : `
+        <table class="ledger">
+          <thead><tr><th>내용</th><th>분류</th><th style="text-align:right;">금액</th></tr></thead>
+          <tbody>
+            ${topExpenses.map(x=>`<tr>
+              <td>${x.desc}</td>
+              <td><span class="tag" style="background:${CAT_COLOR[x.category]||'#999'}">${x.category}</span></td>
+              <td class="num">${won(x.amount)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>
+      <div class="card">
+        <div class="panel-title">예산 대비 지출</div>
+        ${budgetCats.length===0 ? '<div class="empty-row">예산 탭에서 카테고리별 예산을 설정하면 여기에 표시됩니다.</div>' : `
+        <div style="position:relative;height:${Math.max(budgetCats.length*38+40,120)}px;">
+          <canvas id="budgetChart" role="img" aria-label="카테고리별 예산 대비 실제 지출 막대 차트">예산 대비 지출: ${budgetCats.map(c=>c+' 예산 '+data.budgets[c]+' 실제 '+(catTotals[c]||0)).join(', ')}</canvas>
+        </div>`}
+      </div>
+    </div>
+  `;
+
+  function makeDonut(chartKey, canvasId, keys, totalsMap){
+    const ctx = document.getElementById(canvasId);
+    if(charts[chartKey]) charts[chartKey].destroy();
+    if(!keys.length){
+      charts[chartKey] = new Chart(ctx, {
+        type:'doughnut',
+        data:{ labels:['데이터 없음'], datasets:[{ data:[1], backgroundColor:['#EDE8DA'], borderWidth:0 }] },
+        options:{
+          responsive:true, maintainAspectRatio:false, cutout:'62%',
+          plugins:{ legend:{display:false}, tooltip:{enabled:false} }
+        }
+      });
+      return;
+    }
+    charts[chartKey] = new Chart(ctx, {
+      type:'doughnut',
+      data:{
+        labels: keys,
+        datasets:[{ data: keys.map(c=>totalsMap[c]), backgroundColor: keys.map(c=>CAT_COLOR[c]||'#999'), borderWidth:2, borderColor:'#fff' }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false, cutout:'62%',
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: (c)=> c.label + ': ' + won(c.raw) } } }
+      }
+    });
+  }
+
+  makeDonut('income', 'incomeDonut', incomeCard.keys, incomeTotals);
+  makeDonut('savings', 'savingsDonut', savingsCard.keys, savingsCard.typeTotals);
+  makeDonut('fixed', 'fixedDonut', fixedCard.keys, fixedTotals);
+  makeDonut('variable', 'variableDonut', variableCard.keys, variableTotals);
+
+  if(budgetCats.length){
+    const ctx2 = document.getElementById('budgetChart');
+    if(charts.budget) charts.budget.destroy();
+    charts.budget = new Chart(ctx2, {
+      type:'bar',
+      data:{
+        labels: budgetCats,
+        datasets:[
+          { label:'예산', data: budgetCats.map(c=>data.budgets[c]), backgroundColor:'#DFD8C6' },
+          { label:'실제', data: budgetCats.map(c=>catTotals[c]||0), backgroundColor: budgetCats.map(c=>CAT_COLOR[c]||'#999') }
+        ]
+      },
+      options:{
+        indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        scales:{ x:{ ticks:{ callback:(v)=>won(v) } } },
+        plugins:{ legend:{ position:'top', labels:{ boxWidth:10 } }, tooltip:{ callbacks:{ label:(c)=> c.dataset.label + ': ' + won(c.raw) } } }
+      }
+    });
+  }
+}
+
+function renderEntryTab(content, kind, title, cats, hasSub){
+  const rows = [...data[kind]].sort((a,b)=> dayOf(a) - dayOf(b));
+  const total = rows.reduce((s,x)=>s+Number(x.amount||0),0);
+  const showInstallField = kind==='fixed';
+  const isEditing = editingEntry.kind===kind && editingEntry.id;
+  const editItem = isEditing ? data[kind].find(x=>x.id===editingEntry.id) : null;
+  if(isEditing && !editItem) editingEntry = { kind:null, id:null };
+
+  content.innerHTML = `
+    <div class="card">
+      <div class="panel-title">${title} ${editItem?'수정':'등록'} · ${monthLabel(currentMonth)}</div>
+      <form class="entry-form" id="entryForm">
+        <div class="field" style="width:70px;"><label>일</label><input type="number" name="day" min="1" max="31" placeholder="1-31" value="${editItem&&editItem.day?editItem.day:''}"></div>
+        <div class="field grow"><label>내용</label><input type="text" name="desc" placeholder="예: 관리비" value="${editItem?escapeAttr(editItem.desc):''}"></div>
+        <div class="field"><label>금액</label><input type="text" class="num-fmt" name="amount" placeholder="0" value="${editItem?Number(editItem.amount).toLocaleString('ko-KR'):''}"></div>
+        <div class="field"><label>대분류</label>
+          <select name="category" id="categorySelect">${cats.map(c=>`<option value="${c}" ${editItem&&editItem.category===c?'selected':''}>${c}</option>`).join('')}</select>
+        </div>
+        ${showInstallField ? `<div class="field" id="installField" style="width:100px;display:none;"><label>총 할부개월</label><input type="number" name="installTotal" min="1" placeholder="예:12" value="${editItem&&editItem.installmentTotal?editItem.installmentTotal:''}"></div>` : ''}
+        ${hasSub ? `<div class="field"><label>소분류</label><input type="text" name="sub" placeholder="선택" value="${editItem?escapeAttr(editItem.sub||''):''}"></div>` : ''}
+        <div class="field grow"><label>비고</label><input type="text" name="memo" placeholder="선택" value="${editItem?escapeAttr(editItem.memo||''):''}"></div>
+        <button type="button" class="btn btn-brass" id="addBtn">${editItem?'수정 저장':'추가'}</button>
+        ${editItem ? `<button type="button" class="btn btn-ghost" id="cancelEditBtn">취소</button>` : ''}
+      </form>
+      ${showInstallField ? `<div class="section-note">대분류를 "할부/대출"로 선택하면 총 할부개월을 입력할 수 있어요. 입력해두면 다음 달로 넘어갈 때 남은 회차가 자동으로 이어서 기록됩니다.</div>` : ''}
+
+      <table class="ledger">
+        <thead><tr>
+          <th>일</th><th>내용</th><th>대분류</th>${hasSub?'<th>소분류</th>':''}<th>비고</th><th style="text-align:right;">금액</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${rows.length===0 ? `<tr><td colspan="${hasSub?7:6}" class="empty-row">등록된 내역이 없습니다.</td></tr>` :
+            rows.map(x=>{
+              const installBadge = x.installmentTotal
+                ? ` <span class="tag" style="background:#7D6B87;">할부 ${x.installmentNo}/${x.installmentTotal}회 · ${Math.max(x.installmentTotal-x.installmentNo,0)}개월 남음</span>`
+                : '';
+              return `<tr${x.id===editingEntry.id?' style="background:var(--amber-bg);"':''}>
+              <td>${displayDay(x)}</td>
+              <td>${x.desc}</td>
+              <td><span class="tag" style="background:${CAT_COLOR[x.category]||'#7D7568'}">${x.category}</span>${installBadge}</td>
+              ${hasSub?`<td>${x.sub||'-'}</td>`:''}
+              <td>${x.memo||'-'}</td>
+              <td class="num">${won(x.amount)}</td>
+              <td class="row-actions">
+                <button class="edit-btn" data-id="${x.id}" title="수정">✎</button>
+                <button class="del-btn" data-id="${x.id}" title="삭제">✕</button>
+              </td>
+            </tr>`;
+            }).join('')}
+          ${rows.length>0 ? `<tr class="foot-row"><td colspan="${hasSub?5:4}">합계</td><td class="num">${won(total)}</td><td></td></tr>` : ''}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  wireAmountInputs(content);
+  if(showInstallField){
+    const catSelect = document.getElementById('categorySelect');
+    const installFieldEl = document.getElementById('installField');
+    const toggleInstall = ()=>{ installFieldEl.style.display = catSelect.value==='할부/대출' ? '' : 'none'; };
+    catSelect.addEventListener('change', toggleInstall);
+    toggleInstall();
+  }
+  document.getElementById('addBtn').addEventListener('click', ()=>{
+    const form = document.getElementById('entryForm');
+    if(editItem) updateEntry(kind, form);
+    else addEntry(kind, form);
+  });
+  const cancelBtn = document.getElementById('cancelEditBtn');
+  if(cancelBtn) cancelBtn.addEventListener('click', cancelEditEntry);
+  content.querySelectorAll('.edit-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>startEditEntry(kind, btn.dataset.id));
+  });
+  content.querySelectorAll('.del-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>deleteEntry(kind, btn.dataset.id));
+  });
+}
+
+function renderBudgetTab(content, t){
+  const catTotals = categoryTotals();
+  const allCats = [...FIXED_CATS, ...VAR_CATS];
+
+  content.innerHTML = `
+    <div class="card">
+      <div class="panel-title">고정지출 예산</div>
+      <div class="section-note">항목별 이번달 예산을 입력하면 대시보드에 실제 지출과 비교해 보여줍니다.</div>
+      ${FIXED_CATS.map(c=>budgetRowHtml(c, catTotals[c]||0, data.budgets[c]||0)).join('')}
+    </div>
+    <div class="card">
+      <div class="panel-title">변동지출 예산</div>
+      ${VAR_CATS.map(c=>budgetRowHtml(c, catTotals[c]||0, data.budgets[c]||0)).join('')}
+    </div>
+  `;
+
+  wireAmountInputs(content);
+  content.querySelectorAll('.budget-input').forEach(inp=>{
+    inp.addEventListener('change', ()=>setBudget(inp.dataset.cat, inp.value));
+  });
+}
+
+function budgetRowHtml(cat, actual, budget){
+  const pct = budget>0 ? Math.min(100, Math.round(actual/budget*100)) : 0;
+  const over = budget>0 && actual > budget;
+  const barColor = over ? 'var(--rust)' : (pct>80 ? 'var(--amber-ink)' : 'var(--jade)');
+  return `
+    <div class="budget-row">
+      <div class="budget-cat"><span class="legend-dot" style="background:${CAT_COLOR[cat]||'#999'}"></span>${cat}</div>
+      <div>
+        <div class="budget-bar-track"><div class="budget-bar-fill" style="width:${budget>0?pct:0}%;background:${barColor};"></div></div>
+        <div class="budget-nums">${won(actual)} 사용 ${budget>0 ? '/ ' + won(budget) + ' 예산 (' + pct + '%)' : '(예산 미설정)'}</div>
+      </div>
+      <input class="field budget-input num-fmt" type="text" placeholder="예산 입력" value="${budget ? Number(budget).toLocaleString('ko-KR') : ''}" data-cat="${cat}">
+    </div>
+  `;
+}
+
+function savingsProgress(s){
+  if(!s.startDate || !s.endDate) return null;
+  const start = new Date(s.startDate).getTime();
+  const end = new Date(s.endDate).getTime();
+  const now = Date.now();
+  if(!(end > start)) return null;
+  let pct = Math.round((now-start)/(end-start)*100);
+  pct = Math.max(0, Math.min(100, pct));
+  return pct;
+}
+
+function savingsDday(s){
+  if(!s.endDate) return null;
+  const end = new Date(s.endDate).getTime();
+  const now = new Date(); now.setHours(0,0,0,0);
+  const diff = Math.ceil((end - now.getTime())/(1000*60*60*24));
+  return diff;
+}
+
+function renderSavingsTab(content){
+  const rows = [...savings].sort((a,b)=>(a.endDate||'').localeCompare(b.endDate||''));
+  const totalExpected = rows.reduce((s,x)=>s+Number(x.expected||0),0);
+  const typeLabel = { installment: '적립성', lumpsum: '일시납' };
+  const typeColor = { installment: '#2F6F62', lumpsum: '#A9832F' };
+  const editItem = editingSavingId ? savings.find(x=>x.id===editingSavingId) : null;
+  if(editingSavingId && !editItem) editingSavingId = null;
+
+  content.innerHTML = `
+    <div class="card">
+      <div class="panel-title">저축 · 예/적금 ${editItem?'수정':'등록'}</div>
+      <div class="section-note">만기 예정인 저축, 적금, 저축성보험 등을 등록해두면 만기일과 기대 금액을 한눈에 볼 수 있어요.</div>
+      <form class="entry-form" id="savingForm">
+        <div class="field grow"><label>저축명</label><input type="text" name="sname" placeholder="예: DB생명 저축보험" value="${editItem?escapeAttr(editItem.name):''}"></div>
+        <div class="field"><label>유형</label>
+          <select name="stype">
+            <option value="installment" ${editItem&&editItem.type==='installment'?'selected':''}>적립성</option>
+            <option value="lumpsum" ${editItem&&editItem.type==='lumpsum'?'selected':''}>일시납</option>
+          </select>
+        </div>
+        <div class="field"><label>납입금액</label><input type="text" class="num-fmt" name="spay" placeholder="0" value="${editItem&&editItem.payAmount?Number(editItem.payAmount).toLocaleString('ko-KR'):''}"></div>
+        <div class="field"><label>저축 시작일</label><input type="date" name="sstart" min="1900-01-01" max="2099-12-31" value="${editItem?editItem.startDate||'':''}"></div>
+        <div class="field"><label>저축 만기일</label><input type="date" name="send" min="1900-01-01" max="2099-12-31" value="${editItem?editItem.endDate||'':''}"></div>
+        <div class="field" style="width:110px;"><label>이자 유형</label>
+          <select name="srateType">
+            <option value="annual" ${editItem&&editItem.rateType==='annual'?'selected':''}>연 이자</option>
+            <option value="maturity" ${editItem&&editItem.rateType==='maturity'?'selected':''}>만기시 이자율</option>
+          </select>
+        </div>
+        <div class="field" style="width:90px;"><label>이자율</label>
+          <div style="position:relative;">
+            <input type="number" name="srate" step="0.01" placeholder="0" style="width:100%;padding-right:22px;" value="${editItem&&editItem.rateValue!==null&&editItem.rateValue!==undefined?editItem.rateValue:''}">
+            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--ink-soft);pointer-events:none;">%</span>
+          </div>
+        </div>
+        <div class="field"><label>만기시 기대금액</label><input type="text" class="num-fmt" name="sexpected" placeholder="0" value="${editItem?Number(editItem.expected).toLocaleString('ko-KR'):''}"></div>
+        <button type="button" class="btn btn-brass" id="addSavingBtn">${editItem?'수정 저장':'추가'}</button>
+        ${editItem ? `<button type="button" class="btn btn-ghost" id="cancelEditSavingBtn">취소</button>` : ''}
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="panel-title">등록된 저축</div>
+      <div class="section-note">만기시 기대금액 합계: <strong>${won(totalExpected)}</strong></div>
+      ${rows.length===0 ? '<div class="empty-row">등록된 저축이 없습니다.</div>' : rows.map(s=>{
+        const pct = savingsProgress(s);
+        const dday = savingsDday(s);
+        let ddayText = '-';
+        if(dday !== null){
+          ddayText = dday > 0 ? 'D-'+dday : (dday === 0 ? 'D-Day' : '만기 지남');
+        }
+        const rateBits = [];
+        if(s.rateValue!==null && s.rateValue!==undefined){
+          const rateTypeLabel = s.rateType === 'maturity' ? '만기시 이자율' : '연 이자';
+          rateBits.push(rateTypeLabel+' '+s.rateValue+'%');
+        }
+        return `
+        <div class="budget-row saving-row"${s.id===editingSavingId?' style="background:var(--amber-bg);"':''}>
+          <div class="budget-cat">
+            ${s.name}
+            ${s.type ? `<span class="tag" style="background:${typeColor[s.type]||'#999'};margin-left:6px;">${typeLabel[s.type]||s.type}</span>` : ''}
+          </div>
+          <div>
+            <div class="budget-bar-track"><div class="budget-bar-fill" style="width:${pct!==null?pct:0}%;background:var(--brass);"></div></div>
+            <div class="budget-nums">
+              ${s.startDate||'시작일 미정'} ~ ${s.endDate||'만기일 미정'}
+              ${pct!==null?' · 진행 '+pct+'%':''} · ${ddayText}
+              ${s.payAmount ? ' · 납입금액 '+won(s.payAmount) : ''}
+              ${rateBits.length ? ' · '+rateBits.join(' · ') : ''}
+              · 기대금액 ${won(s.expected)}
+            </div>
+          </div>
+          <div class="row-actions" style="justify-self:end;">
+            <button class="edit-btn" data-sid-edit="${s.id}" title="수정">✎</button>
+            <button class="del-btn" data-sid="${s.id}" title="삭제">✕</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+
+  wireAmountInputs(content);
+  document.getElementById('addSavingBtn').addEventListener('click', ()=>{
+    const form = document.getElementById('savingForm');
+    if(editItem) updateSaving(form);
+    else addSaving(form);
+  });
+  const cancelBtn = document.getElementById('cancelEditSavingBtn');
+  if(cancelBtn) cancelBtn.addEventListener('click', cancelEditSaving);
+  content.querySelectorAll('[data-sid-edit]').forEach(btn=>{
+    btn.addEventListener('click', ()=>startEditSaving(btn.dataset.sidEdit));
+  });
+  content.querySelectorAll('[data-sid]').forEach(btn=>{
+    btn.addEventListener('click', ()=>deleteSaving(btn.dataset.sid));
+  });
+}
+
+function renderInvestTab(content){
+  const list = investments.filter(x=>x.type===invSubTab).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const totalAmount = list.reduce((s,x)=>s+Number(x.amount||0),0);
+  let stockValuation = null, stockPL = null, stockPLPct = null;
+  if(invSubTab==='주식'){
+    const priced = list.filter(x=>x.qty && x.price);
+    if(priced.length){
+      const pricedCost = priced.reduce((s,x)=>s+Number(x.amount||0),0);
+      stockValuation = priced.reduce((s,x)=>s+x.qty*x.price,0);
+      stockPL = stockValuation - pricedCost;
+      stockPLPct = pricedCost ? (stockPL/pricedCost*100) : 0;
+    }
+  }
+  const nameLabel = invSubTab==='주식' ? '종목명' : '상품명';
+  const dateLabel = invSubTab==='주식' ? '매수일' : '가입일/매입일';
+  const editItem = editingInvestId ? investments.find(x=>x.id===editingInvestId && x.type===invSubTab) : null;
+  if(editingInvestId && !editItem) editingInvestId = null;
+
+  let extraFields = '';
+  if(invSubTab==='예금' || invSubTab==='적금' || invSubTab==='채권'){
+    extraFields = `
+      <div class="field" style="width:90px;"><label>금리(%)</label><input type="number" name="irate" step="0.01" placeholder="0" value="${editItem&&editItem.rate!==null&&editItem.rate!==undefined?editItem.rate:''}"></div>
+      <div class="field"><label>만기일</label><input type="date" name="imaturity" min="1900-01-01" max="2099-12-31" value="${editItem?editItem.maturityDate||'':''}"></div>
+    `;
+  } else if(invSubTab==='주식'){
+    extraFields = `
+      <div class="field" style="width:90px;"><label>수량(주)</label><input type="number" name="iqty" step="1" placeholder="0" value="${editItem&&editItem.qty?editItem.qty:''}"></div>
+      <div class="field"><label>현재가</label><input type="text" class="num-fmt" name="iprice" placeholder="선택" value="${editItem&&editItem.price?Number(editItem.price).toLocaleString('ko-KR'):''}"></div>
+    `;
+  } else if(invSubTab==='보험'){
+    extraFields = `
+      <div class="field"><label>납입방식</label>
+        <select name="ipaytype">
+          <option value="installment" ${editItem&&editItem.payType==='installment'?'selected':''}>적립성</option>
+          <option value="lumpsum" ${editItem&&editItem.payType==='lumpsum'?'selected':''}>일시납</option>
+        </select>
+      </div>
+      <div class="field" style="width:110px;"><label>이자 유형</label>
+        <select name="irateType2">
+          <option value="annual" ${editItem&&editItem.rateType==='annual'?'selected':''}>연 이자</option>
+          <option value="maturity" ${editItem&&editItem.rateType==='maturity'?'selected':''}>만기시 이자율</option>
+        </select>
+      </div>
+      <div class="field" style="width:90px;"><label>이자율</label>
+        <div style="position:relative;">
+          <input type="number" name="irate2" step="0.01" placeholder="0" style="width:100%;padding-right:22px;" value="${editItem&&editItem.rateValue!==null&&editItem.rateValue!==undefined?editItem.rateValue:''}">
+          <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--ink-soft);pointer-events:none;">%</span>
+        </div>
+      </div>
+      <div class="field"><label>만기일</label><input type="date" name="imaturity2" min="1900-01-01" max="2099-12-31" value="${editItem?editItem.maturityDate||'':''}"></div>
+      <div class="field"><label>만기시 기대금액</label><input type="text" class="num-fmt" name="iexpected" placeholder="0" value="${editItem&&editItem.expected?Number(editItem.expected).toLocaleString('ko-KR'):''}"></div>
+    `;
+  }
+
+  const tossSyncCard = invSubTab==='주식' ? `
+    <div class="card">
+      <div class="panel-title">토스증권 계좌 연동</div>
+      <div class="section-note">조회 전용 프록시 서버 주소와 앱 토큰을 입력하면, 보유 종목·수량·평가금액을 자동으로 불러올 수 있어요.</div>
+      <form class="entry-form" id="tossConfigForm">
+        <div class="field grow"><label>프록시 서버 주소</label><input type="text" name="tossUrl" placeholder="https://내서버주소:3000" value="${escapeAttr(tossConfig.url)}"></div>
+        <div class="field grow"><label>앱 토큰</label><input type="text" name="tossToken" placeholder="APP_TOKEN 값" value="${escapeAttr(tossConfig.token)}"></div>
+        <button type="button" class="btn btn-ghost" id="saveTossConfigBtn">저장</button>
+        <button type="button" class="btn btn-brass" id="syncTossBtn" ${tossSyncing?'disabled':''}>${tossSyncing?'동기화 중…':'잔고 불러오기'}</button>
+      </form>
+      <div class="section-note">${tossLastSynced ? '마지막 동기화: '+new Date(tossLastSynced).toLocaleString('ko-KR') : '아직 동기화한 적이 없어요.'}</div>
+    </div>
+  ` : '';
+
+  content.innerHTML = `
+    <div class="sub-tabnav">
+      ${INV_TYPES.map(t=>`<button class="sub-tab-btn ${t===invSubTab?'active':''}" data-inv-tab="${t}">${t}</button>`).join('')}
+    </div>
+    ${tossSyncCard}
+
+    <div class="card">
+      <div class="panel-title">${invSubTab} ${editItem?'수정':'등록'}</div>
+      <form class="entry-form" id="investForm">
+        <div class="field grow"><label>${nameLabel}</label><input type="text" name="iname" placeholder="예: ${invSubTab==='주식'?'삼성전자':invSubTab+' 상품명'}" value="${editItem?escapeAttr(editItem.name):''}"></div>
+        <div class="field"><label>${invSubTab==='주식'?'매수금액':'투자금액(원금)'}</label><input type="text" class="num-fmt" name="iamount" placeholder="0" value="${editItem?Number(editItem.amount).toLocaleString('ko-KR'):''}"></div>
+        <div class="field"><label>${dateLabel}</label><input type="date" name="idate" min="1900-01-01" max="2099-12-31" value="${editItem?editItem.date||'':''}"></div>
+        ${extraFields}
+        <div class="field grow"><label>비고</label><input type="text" name="imemo" placeholder="선택" value="${editItem?escapeAttr(editItem.memo||''):''}"></div>
+        <button type="button" class="btn btn-brass" id="addInvestBtn">${editItem?'수정 저장':'추가'}</button>
+        ${editItem ? `<button type="button" class="btn btn-ghost" id="cancelEditInvestBtn">취소</button>` : ''}
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="panel-title">${invSubTab} 목록</div>
+      <div class="section-note">${invSubTab} 합계: <strong>${won(totalAmount)}</strong>${stockValuation!==null ? ` · 평가금액 <strong>${won(stockValuation)}</strong> · 손익 <strong style="color:${stockPL>=0?'var(--jade)':'var(--rust)'};">${stockPL>=0?'+':''}${won(stockPL)} (${stockPLPct.toFixed(1)}%)</strong> <span style="color:var(--ink-faint);">(현재가 입력된 종목 기준)</span>` : ''}</div>
+      ${invSubTab==='주식' ? `<div class="section-note" style="margin-top:-8px;">현재가는 실시간 자동 연동이 아니라 직접 입력·수정하는 값이에요. 최신 시세로 손익을 보려면 현재가를 갱신해주세요.</div>` : ''}
+      <table class="ledger">
+        <thead><tr>
+          <th>${nameLabel}</th><th>금액</th><th>${dateLabel}</th><th>상세</th><th>비고</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${list.length===0 ? `<tr><td colspan="6" class="empty-row">등록된 ${invSubTab} 항목이 없습니다.</td></tr>` :
+            list.map(x=>`<tr${x.id===editingInvestId?' style="background:var(--amber-bg);"':''}>
+              <td>${x.name}${x.source==='toss'?' <span class="tag" style="background:#0064FF;">토스 연동</span>':''}</td>
+              <td class="num">${won(x.amount)}</td>
+              <td>${x.date||'-'}</td>
+              <td>${investDetail(x)}</td>
+              <td>${x.memo||'-'}</td>
+              <td class="row-actions">
+                <button class="edit-btn" data-iid-edit="${x.id}" title="수정">✎</button>
+                <button class="del-btn" data-iid="${x.id}" title="삭제">✕</button>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  wireAmountInputs(content);
+  content.querySelectorAll('[data-inv-tab]').forEach(btn=>{
+    btn.addEventListener('click', ()=>switchInvestTab(btn.dataset.invTab));
+  });
+  document.getElementById('addInvestBtn').addEventListener('click', ()=>{
+    const form = document.getElementById('investForm');
+    if(editItem) updateInvestment(invSubTab, form);
+    else addInvestment(invSubTab, form);
+  });
+  const cancelBtn = document.getElementById('cancelEditInvestBtn');
+  if(cancelBtn) cancelBtn.addEventListener('click', cancelEditInvestment);
+  content.querySelectorAll('[data-iid-edit]').forEach(btn=>{
+    btn.addEventListener('click', ()=>startEditInvestment(btn.dataset.iidEdit));
+  });
+  content.querySelectorAll('[data-iid]').forEach(btn=>{
+    btn.addEventListener('click', ()=>deleteInvestment(btn.dataset.iid));
+  });
+  if(invSubTab==='주식'){
+    document.getElementById('saveTossConfigBtn').addEventListener('click', ()=>{
+      saveTossConfigFromForm(document.getElementById('tossConfigForm'));
+    });
+    document.getElementById('syncTossBtn').addEventListener('click', ()=>{
+      updateTossConfigFromForm(document.getElementById('tossConfigForm'));
+      syncTossHoldings();
+    });
+  }
+}
+
+(async function init(){
+  try{
+    loadRemoteConfig();
+    await loadMonthList();
+    await loadSavings();
+    await loadInvestments();
+    await loadTossConfig();
+    data = await loadMonthData(currentMonth);
+    render();
+  }catch(e){
+    console.error(e);
+    document.getElementById('app').innerHTML =
+      '<div style="padding:40px;font-family:sans-serif;color:#B0463D;">'
+      + '앱을 불러오는 중 오류가 발생했습니다. 브라우저 콘솔(F12)을 확인해주세요.<br>'
+      + '<span style="font-size:12px;color:#5B6472;">' + (e && e.message ? e.message : e) + '</span></div>';
+  }
+})();
+</script>
+</body>
+</html>
